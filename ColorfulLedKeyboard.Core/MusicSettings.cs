@@ -8,7 +8,7 @@ public sealed class MusicSettings
 
     public string HighColor { get; set; } = "#FF0040";
 
-    public double Sensitivity { get; set; } = 1.6;
+    public double Sensitivity { get; set; } = 1.5;
 
     public int AttackMs { get; set; } = 35;
 
@@ -24,7 +24,7 @@ public sealed class MusicSettings
     {
         LowColor = LightingEffectSettings.NormalizeHex(LowColor, "#0040FF");
         HighColor = LightingEffectSettings.NormalizeHex(HighColor, "#FF0040");
-        Sensitivity = Math.Clamp(Sensitivity, 0.2, 5.0);
+        Sensitivity = Math.Clamp(Sensitivity, 0.5, 2.0);
         AttackMs = Math.Clamp(AttackMs, 10, 1000);
         ReleaseMs = Math.Clamp(ReleaseMs, 20, 3000);
         BaseBrightness = Math.Clamp(BaseBrightness, 0, 100);

@@ -36,7 +36,8 @@ public sealed class SettingsStore
         try
         {
             var json = File.ReadAllText(SettingsPath);
-            return (JsonSerializer.Deserialize<KeyboardSettings>(json, SerializerOptions) ?? new KeyboardSettings()).Normalize();
+            var migrateLegacyMode = !json.Contains("\"Effect\"", StringComparison.Ordinal);
+            return (JsonSerializer.Deserialize<KeyboardSettings>(json, SerializerOptions) ?? new KeyboardSettings()).Normalize(migrateLegacyMode);
         }
         catch (JsonException)
         {

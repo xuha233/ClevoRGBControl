@@ -90,6 +90,7 @@ public sealed class TrayApplicationContext : ApplicationContext
         {
             settings.Enabled = true;
             settings.Effect.Type = EffectType.Rainbow;
+            settings.Mode = KeyboardMode.Rainbow;
         });
 
         var breathing = new ToolStripMenuItem("单色呼吸...")
@@ -112,6 +113,7 @@ public sealed class TrayApplicationContext : ApplicationContext
         {
             settings.Enabled = true;
             settings.Effect.Type = EffectType.Music;
+            settings.Mode = KeyboardMode.Music;
         });
 
         var off = new ToolStripMenuItem("关闭灯效")
@@ -122,6 +124,7 @@ public sealed class TrayApplicationContext : ApplicationContext
         {
             settings.Enabled = true;
             settings.Effect.Type = EffectType.Off;
+            settings.Mode = KeyboardMode.Off;
         });
 
         effect.DropDownItems.Add(staticColor);
@@ -158,6 +161,7 @@ public sealed class TrayApplicationContext : ApplicationContext
     private ToolStripMenuItem BuildSpeedMenu()
     {
         var speed = new ToolStripMenuItem("速度");
+        AddSpeedItem(speed, "非常慢", 1, 160);
         AddSpeedItem(speed, "慢", 1, 80);
         AddSpeedItem(speed, "正常", 3, 40);
         AddSpeedItem(speed, "快", 6, 30);
@@ -237,6 +241,7 @@ public sealed class TrayApplicationContext : ApplicationContext
         {
             settings.Enabled = true;
             settings.Effect.Type = EffectType.Static;
+            settings.Mode = KeyboardMode.Static;
             settings.Effect.Color = ToHex(dialog.Color);
         });
     }
@@ -258,6 +263,7 @@ public sealed class TrayApplicationContext : ApplicationContext
         {
             settings.Enabled = true;
             settings.Effect.Type = EffectType.Breathing;
+            settings.Mode = KeyboardMode.Breathing;
             settings.Effect.Color = ToHex(dialog.Color);
             settings.Effect.PeriodMs = 2200;
             settings.Effect.MinimumBrightness = 0;

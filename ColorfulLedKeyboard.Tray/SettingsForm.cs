@@ -17,9 +17,9 @@ public sealed class SettingsForm : Form
     private readonly CheckBox _musicLevelColor = new() { Text = "按电平变色" };
     private readonly ColorPickerRow _musicLowColor = new("低电平颜色");
     private readonly ColorPickerRow _musicHighColor = new("高电平颜色");
-    private readonly SliderRow _musicSensitivity = new("灵敏度", 2, 50, "x", value => (value / 10d).ToString("0.0"));
-    private readonly SliderRow _musicAttack = new("响应速度", 10, 1000, " ms");
-    private readonly SliderRow _musicRelease = new("衰减速度", 20, 3000, " ms");
+    private readonly ComboBox _musicSensitivity = new();
+    private readonly ComboBox _musicAttack = new();
+    private readonly ComboBox _musicRelease = new();
     private readonly SliderRow _musicBaseBrightness = new("基础亮度", 0, 100, "%");
     private readonly SliderRow _musicPeakBrightness = new("峰值亮度", 0, 100, "%");
     private readonly CheckBox _idleEnabled = new() { Text = "启用空闲降亮" };
@@ -29,6 +29,9 @@ public sealed class SettingsForm : Form
     private readonly CheckBox _scheduleEnabled = new() { Text = "启用时间计划" };
     private readonly TimeRangePicker _evening = new("傍晚时段");
     private readonly TimeRangePicker _night = new("深夜时段");
+    private static readonly double[] MusicSensitivityValues = [0.5, 1.0, 1.5, 2.0];
+    private static readonly int[] MusicAttackValues = [10, 35, 100, 300, 1000];
+    private static readonly int[] MusicReleaseValues = [80, 180, 500, 1000, 3000];
 
     public SettingsForm(SettingsStore settingsStore)
     {
@@ -84,7 +87,7 @@ public sealed class SettingsForm : Form
         _effectType.Items.AddRange(["固定颜色", "RGB 循环", "单色呼吸", "色彩序列", "音乐模式", "关闭"]);
 
         _speed.DropDownStyle = ComboBoxStyle.DropDownList;
-        _speed.Items.AddRange(["慢", "正常", "快", "很快"]);
+        _speed.Items.AddRange(["非常慢", "慢", "正常", "快", "很快"]);
 
         page.Controls.Add(Row("当前效果", _effectType));
         page.Controls.Add(_brightness);
@@ -107,12 +110,16 @@ public sealed class SettingsForm : Form
     private TabPage BuildMusicTab()
     {
         var (tab, page) = CreatePage("音乐");
+        SetupCombo(_musicSensitivity, MusicSensitivityValues.Select(value => $"{value:0.0}x"));
+        SetupCombo(_musicAttack, MusicAttackValues.Select(value => $"{value} ms"));
+        SetupCombo(_musicRelease, MusicReleaseValues.Select(value => $"{value} ms"));
+
         page.Controls.Add(PlainRow(_musicLevelColor));
         page.Controls.Add(_musicLowColor);
         page.Controls.Add(_musicHighColor);
-        page.Controls.Add(_musicSensitivity);
-        page.Controls.Add(_musicAttack);
-        page.Controls.Add(_musicRelease);
+        page.Controls.Add(Row("灵敏度", _musicSensitivity));
+        page.Controls.Add(Row("响应速度", _musicAttack));
+        page.Controls.Add(Row("衰减速度", _musicRelease));
         page.Controls.Add(_musicBaseBrightness);
         page.Controls.Add(_musicPeakBrightness);
         return tab;
@@ -196,9 +203,9 @@ public sealed class SettingsForm : Form
         _musicLevelColor.Checked = settings.Effect.Music.LevelColorEnabled;
         _musicLowColor.ColorHex = settings.Effect.Music.LowColor;
         _musicHighColor.ColorHex = settings.Effect.Music.HighColor;
-        _musicSensitivity.Value = (int)Math.Round(settings.Effect.Music.Sensitivity * 10);
-        _musicAttack.Value = settings.Effect.Music.AttackMs;
-        _musicRelease.Value = settings.Effect.Music.ReleaseMs;
+        _musicSensitivity.SelectedIndex = ClosestIndex(MusicSensitivityValues, settings.Effect.Music.Sensitivity);
+        _musicAttack.SelectedIndex = ClosestIndex(MusicAttackValues, settings.Effect.Music.AttackMs);
+        _musicRelease.SelectedIndex = ClosestIndex(MusicReleaseValues, settings.Effect.Music.ReleaseMs);
         _musicBaseBrightness.Value = settings.Effect.Music.BaseBrightness;
         _musicPeakBrightness.Value = settings.Effect.Music.PeakBrightness;
         _idleEnabled.Checked = settings.IdleDim.Enabled;
@@ -237,9 +244,9 @@ public sealed class SettingsForm : Form
             settings.Effect.Music.LevelColorEnabled = _musicLevelColor.Checked;
             settings.Effect.Music.LowColor = _musicLowColor.ColorHex;
             settings.Effect.Music.HighColor = _musicHighColor.ColorHex;
-            settings.Effect.Music.Sensitivity = _musicSensitivity.Value / 10d;
-            settings.Effect.Music.AttackMs = _musicAttack.Value;
-            settings.Effect.Music.ReleaseMs = _musicRelease.Value;
+            settings.Effect.Music.Sensitivity = MusicSensitivityValues[Math.Max(0, _musicSensitivity.SelectedIndex)];
+            settings.Effect.Music.AttackMs = MusicAttackValues[Math.Max(0, _musicAttack.SelectedIndex)];
+            settings.Effect.Music.ReleaseMs = MusicReleaseValues[Math.Max(0, _musicRelease.SelectedIndex)];
             settings.Effect.Music.BaseBrightness = _musicBaseBrightness.Value;
             settings.Effect.Music.PeakBrightness = _musicPeakBrightness.Value;
             settings.IdleDim.Enabled = _idleEnabled.Checked;
@@ -249,7 +256,7 @@ public sealed class SettingsForm : Form
             settings.Schedule.Enabled = _scheduleEnabled.Checked;
             settings.Schedule.Rules = BuildScheduleRules();
             _settingsStore.Save(settings);
-            Close();
+            Text = "ClevoRGBControl 设置 - 已保存";
         }
         catch (Exception ex) when (ex is FormatException or IOException or UnauthorizedAccessException)
         {
@@ -307,6 +314,15 @@ public sealed class SettingsForm : Form
         return panel;
     }
 
+    private static void SetupCombo(ComboBox combo, IEnumerable<string> values)
+    {
+        combo.DropDownStyle = ComboBoxStyle.DropDownList;
+        if (combo.Items.Count == 0)
+        {
+            combo.Items.AddRange(values.Cast<object>().ToArray());
+        }
+    }
+
     private static Panel PlainRow(Control control)
     {
         var panel = new Panel { Width = 680, Height = 38 };
@@ -342,19 +358,55 @@ public sealed class SettingsForm : Form
     {
         (settings.Effect.Step, settings.Effect.IntervalMs) = _speed.SelectedIndex switch
         {
-            0 => (1, 80),
-            2 => (6, 30),
-            3 => (10, 20),
+            0 => (1, 160),
+            1 => (1, 80),
+            3 => (6, 30),
+            4 => (10, 20),
             _ => (3, 40)
         };
     }
 
     private static int SpeedToIndex(int step, int intervalMs)
     {
-        if (step <= 1 || intervalMs >= 80) return 0;
-        if (step >= 10 || intervalMs <= 20) return 3;
-        if (step >= 6 || intervalMs <= 30) return 2;
-        return 1;
+        if (step <= 1 && intervalMs >= 120) return 0;
+        if (step <= 1 || intervalMs >= 80) return 1;
+        if (step >= 10 || intervalMs <= 20) return 4;
+        if (step >= 6 || intervalMs <= 30) return 3;
+        return 2;
+    }
+
+    private static int ClosestIndex(double[] values, double target)
+    {
+        var best = 0;
+        var bestDistance = double.MaxValue;
+        for (var i = 0; i < values.Length; i++)
+        {
+            var distance = Math.Abs(values[i] - target);
+            if (distance < bestDistance)
+            {
+                best = i;
+                bestDistance = distance;
+            }
+        }
+
+        return best;
+    }
+
+    private static int ClosestIndex(int[] values, int target)
+    {
+        var best = 0;
+        var bestDistance = int.MaxValue;
+        for (var i = 0; i < values.Length; i++)
+        {
+            var distance = Math.Abs(values[i] - target);
+            if (distance < bestDistance)
+            {
+                best = i;
+                bestDistance = distance;
+            }
+        }
+
+        return best;
     }
 
     private static int SecondsToIdleIndex(int seconds) => seconds switch

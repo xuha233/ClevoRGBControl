@@ -20,6 +20,7 @@ public class Worker : BackgroundService
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
         EnsureConfigWatcher();
+        await FlashStartupAsync(stoppingToken);
 
         while (!stoppingToken.IsCancellationRequested)
         {
@@ -77,8 +78,12 @@ public class Worker : BackgroundService
         {
             if (DateTimeOffset.UtcNow >= nextRuntimeRefresh)
             {
-                _settingsChanged = true;
-                return;
+                nextRuntimeRefresh = DateTimeOffset.UtcNow.AddSeconds(1);
+                if (ShouldRebuildRuntimeSettings(settings))
+                {
+                    _settingsChanged = true;
+                    return;
+                }
             }
 
             var color = generator.Next();
@@ -113,8 +118,12 @@ public class Worker : BackgroundService
         {
             if (DateTimeOffset.UtcNow >= nextRuntimeRefresh)
             {
-                _settingsChanged = true;
-                return;
+                nextRuntimeRefresh = DateTimeOffset.UtcNow.AddSeconds(1);
+                if (ShouldRebuildRuntimeSettings(settings))
+                {
+                    _settingsChanged = true;
+                    return;
+                }
             }
 
             var level = _audioLevelMeter.GetPeakLevel();
@@ -150,6 +159,44 @@ public class Worker : BackgroundService
         ApplySchedule(runtime);
         ApplyIdleDim(runtime);
         return runtime.Normalize();
+    }
+
+    private static bool ShouldRebuildRuntimeSettings(KeyboardSettings current)
+    {
+        var next = BuildRuntimeSettings(new SettingsStore().Load());
+        return next.Enabled != current.Enabled ||
+            next.Brightness != current.Brightness ||
+            next.Effect.Type != current.Effect.Type ||
+            next.Effect.Color != current.Effect.Color ||
+            next.Effect.Step != current.Effect.Step ||
+            next.Effect.IntervalMs != current.Effect.IntervalMs ||
+            next.Effect.PeriodMs != current.Effect.PeriodMs ||
+            next.Effect.MinimumBrightness != current.Effect.MinimumBrightness ||
+            next.Effect.HardBlink != current.Effect.HardBlink ||
+            next.Effect.Sequence.Count != current.Effect.Sequence.Count ||
+            next.Effect.Sequence.Zip(current.Effect.Sequence).Any(pair =>
+                pair.First.Color != pair.Second.Color ||
+                pair.First.HoldMs != pair.Second.HoldMs ||
+                pair.First.TransitionMs != pair.Second.TransitionMs ||
+                pair.First.Breathing != pair.Second.Breathing);
+    }
+
+    private async Task FlashStartupAsync(CancellationToken stoppingToken)
+    {
+        try
+        {
+            for (var i = 0; i < 2; i++)
+            {
+                _device.SetAllZones(new RgbColor(255, 255, 255));
+                await Task.Delay(120, stoppingToken);
+                _device.SetAllZones(RgbColor.Black);
+                await Task.Delay(120, stoppingToken);
+            }
+        }
+        catch (Exception ex) when (ex is DllNotFoundException or EntryPointNotFoundException or SEHException)
+        {
+            _logger.LogWarning(ex, "Startup flash could not be sent to the keyboard.");
+        }
     }
 
     private static void ApplySchedule(KeyboardSettings settings)

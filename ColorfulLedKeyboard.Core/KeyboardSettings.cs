@@ -20,7 +20,7 @@ public sealed class KeyboardSettings
 
     public ScheduleSettings Schedule { get; set; } = new();
 
-    public KeyboardSettings Normalize()
+    public KeyboardSettings Normalize(bool migrateLegacyMode = false)
     {
         Brightness = Math.Clamp(Brightness, 0, 100);
         RainbowStep = Math.Clamp(RainbowStep, 1, 20);
@@ -42,7 +42,7 @@ public sealed class KeyboardSettings
 
         Effect ??= new LightingEffectSettings();
 
-        if (Effect.Type == EffectType.Rainbow && Mode != KeyboardMode.Rainbow)
+        if (migrateLegacyMode && Effect.Type == EffectType.Rainbow && Mode != KeyboardMode.Rainbow)
         {
             Effect.Type = Mode switch
             {
@@ -55,7 +55,10 @@ public sealed class KeyboardSettings
             };
         }
 
-        if (Effect.Type is EffectType.Static or EffectType.Breathing && Effect.Color == "#FF0000" && StaticColor != "#FF0000")
+        if (migrateLegacyMode &&
+            Effect.Type is EffectType.Static or EffectType.Breathing &&
+            Effect.Color == "#FF0000" &&
+            StaticColor != "#FF0000")
         {
             Effect.Color = StaticColor;
         }
